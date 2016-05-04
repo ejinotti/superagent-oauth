@@ -54,20 +54,28 @@ module.exports = function (superagent) {
    */
 
   Request.prototype.signOAuth = function () {
+    var extraParams = this._oauth_query || {};
+    var bodyParams = this._data || {};
+
+    // add body to oath params only if form-encoded!
+    // NOTE: assumes that _data is still an obj and not yet encoded..
+    // TODO: check superagent source.
+    if (this.get('Content-Type') === 'application/x-www-form-urlencoded' &&
+        typeof bodyParams === 'object') {
+      Object.keys(bodyParams).forEach(function (k) {
+        extraParams[k] = bodyParams[k];
+      });
+    }
+
     var params = this.oa._prepareParameters(
-        this.token
-      , this.secret
-      , this.method
-      , this.url
-      , this._data || this._oauth_query // XXX: what if there's query and body? merge?
+      this.token, this.secret, this.method, this.url, extraParams
     );
 
     var header = this.oa._isEcho
-          ? 'X-Verify-Credentials-Authorization'
-          : 'Authorization'
-      , signature = this.oa._buildAuthorizationHeaders(params)
+      ? 'X-Verify-Credentials-Authorization'
+      : 'Authorization';
 
-    this.set(header, signature);
+    this.set(header, this.oa._buildAuthorizationHeaders(params));
   };
 
   /**
@@ -96,7 +104,7 @@ module.exports = function (superagent) {
     }
 
     return this.end.apply(this, arguments);
-  }
+  };
 
   /**
    * Overrides .request() to add the OAuth2 access token query param if needed.
@@ -116,4 +124,4 @@ module.exports = function (superagent) {
     return this.request();
   };
 
-}
+};
